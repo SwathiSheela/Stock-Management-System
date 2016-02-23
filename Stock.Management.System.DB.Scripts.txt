@@ -1,0 +1,218 @@
+USE [WMS]
+GO
+/****** Object:  StoredProcedure [dbo].[USP_GetStockList]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE procedure [dbo].[USP_GetStockList](@whid int= null)
+AS
+Begin
+if ISNULL('',@whid) is null
+Select * from Stock
+else
+--Select * from Stock where StockId in(Select StockId from WSDetails where WareHouseId =1)
+Select distinct * from Stock S  join WSDetails WSD on S.StockId=WSD.StockId and WSD.WareHouseId=@whid
+end
+GO
+/****** Object:  StoredProcedure [dbo].[USP_GetWareHouseList]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE procedure [dbo].[USP_GetWareHouseList]
+AS
+Begin
+Select * from WareHouse
+end
+GO
+/****** Object:  StoredProcedure [dbo].[USP_InsertOrUpdateStock]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE  procedure [dbo].[USP_InsertOrUpdateStock](
+@sname varchar(50),@sdesc varchar(100),@unitprice decimal(10,3),@quantity int,@whid int=null,@stockId int=null)
+AS
+Begin
+if @stockId is null or @stockId =0
+begin
+Insert into Stock values(@sname,@sdesc,@unitprice)
+insert into WSDetails(WareHouseId,StockId,SQuantity) values(@whid,@@IDENTITY,@quantity)
+end
+else
+begin
+update stock set UnitPrice=@unitprice where StockId=@stockId
+update WSDetails set SQuantity=@quantity where WareHouseId=@whid and StockId=@stockId
+end
+end
+GO
+/****** Object:  StoredProcedure [dbo].[USP_InsertOrUpdateWareHouseList]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE procedure [dbo].[USP_InsertOrUpdateWareHouseList](@Wname varchar(50),@Wlocation varchar(100))
+AS
+Begin
+Insert into WareHouse values(@Wname,@Wlocation)
+end
+GO
+/****** Object:  StoredProcedure [dbo].[USP_MoveStocks]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE procedure [dbo].[USP_MoveStocks](@dwhid int,@swhid int,@stockid int,@quntity int)
+as begin
+
+declare @wsid int,@squntity int
+declare @wsid1 int,@squntity1 int
+declare @count int
+select @count =count(*) from WSDetails where WareHouseId=@dwhid and StockId=@stockid
+SELECT  @wsid=[WSDId],@squntity=[SQuantity]
+  FROM [WMS].[dbo].[WSDetails] WHERE WareHouseId=@swhid and StockId=@stockid
+  
+  SELECT  @wsid1=[WSDId],@squntity1=[SQuantity]
+  FROM [WMS].[dbo].[WSDetails] WHERE WareHouseId=@dwhid and StockId=@stockid
+
+if @count=0
+begin
+insert into WSDetails(WareHouseId,StockId,SQuantity) values(@dwhid,@stockId,@quntity)
+Update [WSDetails] set [SQuantity]=@squntity-@quntity where [WSDId]=@wsid
+end
+else
+begin
+
+   --for updating destination quantity
+   Update [WSDetails] set [SQuantity]=@squntity1+@quntity where [WSDId]=@wsid1
+   --for updating source quantity
+   Update [WSDetails] set [SQuantity]=@squntity-@quntity where [WSDId]=@wsid
+   end
+end
+GO
+/****** Object:  Table [dbo].[Stock]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[Stock](
+	[StockId] [int] IDENTITY(1,1) NOT NULL,
+	[Sname] [varchar](100) NOT NULL,
+	[SDesc] [varchar](150) NULL,
+	[UnitPrice] [decimal](10, 3) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[StockId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[WareHouse]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[WareHouse](
+	[Wid] [int] IDENTITY(1,1) NOT NULL,
+	[Wname] [varchar](100) NOT NULL,
+	[WLocation] [varchar](150) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[Wid] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[WSDetails]    Script Date: 23/02/2016 11:15:14 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[WSDetails](
+	[WSDId] [int] IDENTITY(1,1) NOT NULL,
+	[WareHouseId] [int] NULL,
+	[StockId] [int] NULL,
+	[SQuantity] [int] NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[WSDId] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET IDENTITY_INSERT [dbo].[Stock] ON 
+
+GO
+INSERT [dbo].[Stock] ([StockId], [Sname], [SDesc], [UnitPrice]) VALUES (1, N'clothes', N'Dresses', CAST(200.000 AS Decimal(10, 3)))
+GO
+INSERT [dbo].[Stock] ([StockId], [Sname], [SDesc], [UnitPrice]) VALUES (2, N'Books', N'Note Books', CAST(10.000 AS Decimal(10, 3)))
+GO
+INSERT [dbo].[Stock] ([StockId], [Sname], [SDesc], [UnitPrice]) VALUES (3, N'Pens', N'Ball pen', CAST(2.000 AS Decimal(10, 3)))
+GO
+INSERT [dbo].[Stock] ([StockId], [Sname], [SDesc], [UnitPrice]) VALUES (4, N'Televisions', N'3d', CAST(200.000 AS Decimal(10, 3)))
+GO
+SET IDENTITY_INSERT [dbo].[Stock] OFF
+GO
+SET IDENTITY_INSERT [dbo].[WareHouse] ON 
+
+GO
+INSERT [dbo].[WareHouse] ([Wid], [Wname], [WLocation]) VALUES (1, N'Parramatta', N'parramatta council')
+GO
+INSERT [dbo].[WareHouse] ([Wid], [Wname], [WLocation]) VALUES (2, N'North Sydney', N'Doris St North Sydney')
+GO
+INSERT [dbo].[WareHouse] ([Wid], [Wname], [WLocation]) VALUES (3, N'Chartwood', N'Chatswood Station')
+GO
+INSERT [dbo].[WareHouse] ([Wid], [Wname], [WLocation]) VALUES (4, N'chartswood', N'chartwood park')
+GO
+SET IDENTITY_INSERT [dbo].[WareHouse] OFF
+GO
+SET IDENTITY_INSERT [dbo].[WSDetails] ON 
+
+GO
+INSERT [dbo].[WSDetails] ([WSDId], [WareHouseId], [StockId], [SQuantity]) VALUES (1, 2, 1, 40)
+GO
+INSERT [dbo].[WSDetails] ([WSDId], [WareHouseId], [StockId], [SQuantity]) VALUES (2, 1, 1, 1)
+GO
+INSERT [dbo].[WSDetails] ([WSDId], [WareHouseId], [StockId], [SQuantity]) VALUES (3, 2, 2, 70)
+GO
+INSERT [dbo].[WSDetails] ([WSDId], [WareHouseId], [StockId], [SQuantity]) VALUES (4, 1, 3, 10)
+GO
+INSERT [dbo].[WSDetails] ([WSDId], [WareHouseId], [StockId], [SQuantity]) VALUES (5, 3, 4, 80)
+GO
+INSERT [dbo].[WSDetails] ([WSDId], [WareHouseId], [StockId], [SQuantity]) VALUES (6, 2, 4, 20)
+GO
+SET IDENTITY_INSERT [dbo].[WSDetails] OFF
+GO
+SET ANSI_PADDING ON
+
+GO
+/****** Object:  Index [UQ__Stock__52723D2721B6055D]    Script Date: 23/02/2016 11:15:14 PM ******/
+ALTER TABLE [dbo].[Stock] ADD UNIQUE NONCLUSTERED 
+(
+	[Sname] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+SET ANSI_PADDING ON
+
+GO
+/****** Object:  Index [UQ__WareHous__DDD33BFF1B0907CE]    Script Date: 23/02/2016 11:15:14 PM ******/
+ALTER TABLE [dbo].[WareHouse] ADD UNIQUE NONCLUSTERED 
+(
+	[Wname] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+ALTER TABLE [dbo].[WSDetails]  WITH CHECK ADD FOREIGN KEY([StockId])
+REFERENCES [dbo].[Stock] ([StockId])
+GO
+ALTER TABLE [dbo].[WSDetails]  WITH CHECK ADD FOREIGN KEY([WareHouseId])
+REFERENCES [dbo].[WareHouse] ([Wid])
+GO
